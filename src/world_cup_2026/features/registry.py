@@ -17,7 +17,12 @@ def build_baseline_training_frame(
     processed_path = Path(processed_dir)
     if include_elo and include_fifa:
         # Use the file with geo features if it exists, fallback to ratings
-        matches_file = "matches_with_geo.csv" if (processed_path / "matches_with_geo.csv").exists() else "matches_with_ratings.csv"
+        if (processed_path / "matches_with_xg.csv").exists():
+            matches_file = "matches_with_xg.csv"
+        elif (processed_path / "matches_with_geo.csv").exists():
+            matches_file = "matches_with_geo.csv"
+        else:
+            matches_file = "matches_with_ratings.csv"
     elif include_elo:
         matches_file = "matches_with_elo.csv"
     elif include_fifa:
@@ -49,8 +54,21 @@ def build_baseline_training_frame(
             completed_matches.apply(lambda row: "|".join(sorted([str(row["home_confed"]), str(row["away_confed"])])), axis=1)
         )
 
-    # xG Proxy: Simple baseline xG based on scores and Elo diff
-    if "elo_diff_pre" in completed_matches.columns:
+    # xG: use real StatsBomb xG where available, fall back to proxy
+    has_real_xg = (
+        "home_xg_real" in completed_matches.columns
+        and completed_matches["home_xg_real"].notna().any()
+    )
+    if has_real_xg:
+        if "elo_diff_pre" in completed_matches.columns:
+            proxy_home = completed_matches["home_score"] * 0.9 + 0.1 * (1.5 + completed_matches["elo_diff_pre"] / 400.0)
+            proxy_away = completed_matches["away_score"] * 0.9 + 0.1 * (1.5 - completed_matches["elo_diff_pre"] / 400.0)
+        else:
+            proxy_home = completed_matches["home_score"].astype(float)
+            proxy_away = completed_matches["away_score"].astype(float)
+        completed_matches["home_xg"] = completed_matches["home_xg_real"].fillna(proxy_home)
+        completed_matches["away_xg"] = completed_matches["away_xg_real"].fillna(proxy_away)
+    elif "elo_diff_pre" in completed_matches.columns:
         completed_matches["home_xg"] = completed_matches["home_score"] * 0.9 + 0.1 * (1.5 + completed_matches["elo_diff_pre"] / 400.0)
         completed_matches["away_xg"] = completed_matches["away_score"] * 0.9 + 0.1 * (1.5 - completed_matches["elo_diff_pre"] / 400.0)
     else:

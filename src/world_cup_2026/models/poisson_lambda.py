@@ -27,23 +27,29 @@ from world_cup_2026.features.registry import build_baseline_training_frame
 from world_cup_2026.models.poisson import PoissonMatchModel, fit_rho
 
 # Features from the scoring team's attack history
-# xg_for_* excluded: derived from score * 0.9 + elo_adj (target leakage)
 _ATTACK_COLS = [
     "goals_for_last_10",
     "goals_for_ewm_10",
     "goals_for_career_avg",
     "goal_diff_ewm_10",
     "goal_diff_career_avg",
+    # Real StatsBomb xG (median-imputed for non-covered matches)
+    "xg_for_last_10",
+    "xg_for_ewm_10",
+    "xg_for_career_avg",
 ]
 
 # Features from the opponent's defensive history
-# xg_against_* excluded: derived from opponent score (target leakage)
 _DEFENSE_COLS = [
     "goals_against_last_10",
     "goals_against_ewm_10",
     "goals_against_career_avg",
     "clean_sheet_last_10",
     "clean_sheet_ewm_5",
+    # Real StatsBomb xG conceded
+    "xg_against_last_10",
+    "xg_against_ewm_10",
+    "xg_against_career_avg",
 ]
 
 # Match-level context (same for both rows)
