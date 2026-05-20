@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Virtual env
+.venv/
+
+# Generated data (large, reproducible via pipeline)
+raw/
+processed/
+tmp_processed_test/
+
+# Experiment artifacts (reproducible via train commands)
+artifacts/
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
