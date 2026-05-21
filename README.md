@@ -14,7 +14,7 @@ The codebase is organized into a modular structure to ensure scalability and cla
 - `simulation/`: Monte Carlo tournament simulation engine.
 - `scripts/`: Utility scripts for hyperparameter tuning (Optuna) and importance analysis.
 
-## Current Progress: Phase 3 Completed
+## Current Progress: Phase 5 Completed
 
 ### Phase 2 — XGBoost Baseline
 A fully optimized XGBoost classifier trained on historical match data with dual ratings, contextual features, and Platt-scaled calibration.
@@ -41,6 +41,20 @@ A fully optimized XGBoost classifier trained on historical match data with dual 
 
 The Poisson model **beats the XGBoost classifier** on mean log loss (0.8999 vs 0.9027) while also producing full scoreline distributions for tournament simulation. The Dixon-Coles correction (ρ ≈ −0.05) addresses plain Poisson's tendency to over-predict 0-0 and 1-1 outcomes. Real StatsBomb xG is used for WC 2022/2018, Euro 2024/2020, and Copa América 2024 (262 total matches); all other matches fall back to the score-based proxy.
 
+### Phase 5 — Bookmaker Odds Integration
+
+Scraped pre-match 1X2 average odds from Betexplorer for all accessible international tournaments (WC 2022/2006, Euro 2024/2020/2004, Copa América 2024/2021), covering 1,526 matches (1,413 joined to training data, 2.9% coverage). Key findings:
+
+| Aspect | Finding |
+|---|---|
+| **Scraper** | `data/ingestion/odds.py` — Betexplorer, 3-pass join (forward / neutral-venue swap / UTC date-shift) |
+| **Feature threshold** | Odds features activate when coverage ≥ 15%; below that, sparse imputed values hurt tree models |
+| **Poisson impact** | `odds_team_prob` context feature improves recent-fold log loss: **0.8645 → 0.8624** |
+| **XGBoost impact** | No change (2.9% < 15% threshold); features ready for when WC 2026 odds are available |
+| **Older tournaments** | WC 2018/2014, Euro 2016/2012/2008 odds not available in static HTML (JavaScript-rendered) |
+
+The infrastructure is fully wired: once WC 2026 group-stage odds are published (days before each match), they can be injected via `data fetch --source odds` + `data process --step odds-merge`, at which point they will be included as XGBoost features for inference.
+
 ## Getting Started
 
 ### 1. Environment Setup
@@ -61,6 +75,10 @@ uv run python -m world_cup_2026 data process --step geo
 # Optional: fetch real StatsBomb xG (262 international matches) and merge
 uv run python -m world_cup_2026 data fetch --source xg
 uv run python -m world_cup_2026 data process --step xg-merge
+
+# Optional: fetch bookmaker odds (Betexplorer) and merge
+uv run python -m world_cup_2026 data fetch --source odds
+uv run python -m world_cup_2026 data process --step odds-merge
 ```
 
 ### 3. Model Training
@@ -84,5 +102,5 @@ uv run python -m world_cup_2026.scripts.diagnostics
   - [x] 3a: Calibration + feature importance + correlation pruning → 172 → 110 features
   - [x] 3b: Poisson λ predictor with Dixon-Coles correction + XGBoost regressor → log loss 0.9007, beats XGBoost classifier
 - [ ] Phase 4: Monte Carlo Tournament Simulation (requires Phase 3b scoreline distributions)
-- [ ] Phase 5: Bookmaker Odds Integration (benchmark + feature)
+- [x] Phase 5: Bookmaker Odds Integration — 1,526 matches from Betexplorer; Poisson recent-fold LL 0.8645 → 0.8624
 - [x] Phase 6: Real xG Data — StatsBomb open data (262 intl. matches: WC 2022/18, Euro 2024/20, Copa América 2024)

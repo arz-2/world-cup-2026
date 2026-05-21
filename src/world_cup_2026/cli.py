@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from world_cup_2026.data.ingestion.odds import fetch_bookmaker_odds
 from world_cup_2026.data.ingestion.statsbomb import fetch_statsbomb_xg
 from world_cup_2026.data.ingestion.elo import (
     fetch_current_elo_snapshot,
@@ -31,13 +32,13 @@ def main() -> None:
 
     # Data Fetch
     fetch_parser = data_subparsers.add_parser("fetch")
-    fetch_parser.add_argument("--source", choices=["elo", "fifa", "xg"], required=True)
+    fetch_parser.add_argument("--source", choices=["elo", "fifa", "xg", "odds"], required=True)
     fetch_parser.add_argument("--limit", type=int, default=None)
 
     # Data Process
     process_parser = data_subparsers.add_parser("process")
     process_parser.add_argument(
-        "--step", choices=["elo-history", "fifa-parse", "merge-ratings", "geo", "xg-merge"], required=True
+        "--step", choices=["elo-history", "fifa-parse", "merge-ratings", "geo", "xg-merge", "odds-merge"], required=True
     )
 
     # Train Command
@@ -53,6 +54,8 @@ def main() -> None:
             if args.source == "elo":
                 fetch_current_elo_snapshot()
                 fetch_all_team_history_pages()
+            elif args.source == "odds":
+                fetch_bookmaker_odds()
             elif args.source == "xg":
                 fetch_statsbomb_xg()
             elif args.source == "fifa":
@@ -81,6 +84,9 @@ def main() -> None:
             elif args.step == "xg-merge":
                 from world_cup_2026.data.processing.xg import merge_statsbomb_xg
                 merge_statsbomb_xg()
+            elif args.step == "odds-merge":
+                from world_cup_2026.data.processing.odds import merge_bookmaker_odds
+                merge_bookmaker_odds()
 
     elif args.command == "train":
         if args.model == "xgboost":

@@ -54,13 +54,15 @@ _DEFENSE_COLS = [
 
 # Match-level context (same for both rows)
 _CONTEXT_NUM_COLS = [
-    "elo_advantage",   # scoring_team_elo - opponent_elo
+    "elo_advantage",      # scoring_team_elo - opponent_elo
     "is_home",
     "neutral_flag",
     "match_altitude",
-    "travel_km_diff",  # opponent travel - scoring team travel (positive = opponent more fatigued)
-    "rest_days_diff",  # scoring team rest - opponent rest
+    "travel_km_diff",     # opponent travel - scoring team travel
+    "rest_days_diff",     # scoring team rest - opponent rest
     "h2h_goal_diff_avg",
+    # Bookmaker implied probability for the scoring team (NaN-imputed to median)
+    "odds_team_prob",     # computed in _build_perspective from odds_home/away_prob
 ]
 _CONTEXT_CAT_COLS = ["tournament_group"]
 
@@ -114,6 +116,12 @@ def _build_perspective(df: pd.DataFrame, side: str) -> pd.DataFrame:
     rows["rest_days_diff"] = df["rest_days_diff"] if is_home else -df["rest_days_diff"]
     rows["h2h_goal_diff_avg"] = df["h2h_goal_diff_avg"] if is_home else -df["h2h_goal_diff_avg"]
     rows["tournament_group"] = df["tournament_group"]
+
+    # Bookmaker implied win probability for the scoring team (NaN where odds unavailable)
+    if "odds_home_prob" in df.columns:
+        rows["odds_team_prob"] = df["odds_home_prob"] if is_home else df["odds_away_prob"]
+    else:
+        rows["odds_team_prob"] = float("nan")
 
     return rows
 

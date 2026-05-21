@@ -17,7 +17,9 @@ def build_baseline_training_frame(
     processed_path = Path(processed_dir)
     if include_elo and include_fifa:
         # Use the file with geo features if it exists, fallback to ratings
-        if (processed_path / "matches_with_xg.csv").exists():
+        if (processed_path / "matches_with_odds.csv").exists():
+            matches_file = "matches_with_odds.csv"
+        elif (processed_path / "matches_with_xg.csv").exists():
             matches_file = "matches_with_xg.csv"
         elif (processed_path / "matches_with_geo.csv").exists():
             matches_file = "matches_with_geo.csv"
@@ -30,7 +32,7 @@ def build_baseline_training_frame(
     else:
         matches_file = "matches.csv"
         
-    matches = pd.read_csv(processed_path / matches_file, parse_dates=["match_date"])
+    matches = pd.read_csv(processed_path / matches_file, parse_dates=["match_date"], low_memory=False)
 
     completed_matches = matches[matches["is_future_fixture"] == False].copy()
     completed_matches = completed_matches.reset_index(drop=True)
@@ -128,6 +130,18 @@ def build_baseline_training_frame(
 
     for column in numeric_columns:
         feature_frame[column] = pd.to_numeric(feature_frame[column], errors="coerce").fillna(0.0)
+
+    # Bookmaker odds — median-imputed with availability flag.
+    # Only added when coverage exceeds 15% of completed matches; below that threshold
+    # sparse imputed values hurt tree-based models more than they help.
+    if "odds_home_prob" in feature_frame.columns:
+        coverage = feature_frame["odds_home_prob"].notna().mean()
+        feature_frame["odds_available"] = feature_frame["odds_home_prob"].notna().astype(float)
+        for col in ["odds_home_prob", "odds_draw_prob", "odds_away_prob", "odds_overround"]:
+            median_val = feature_frame.loc[feature_frame[col].notna(), col].median()
+            feature_frame[col] = pd.to_numeric(feature_frame[col], errors="coerce").fillna(median_val)
+        if coverage >= 0.15:
+            numeric_columns += ["odds_home_prob", "odds_draw_prob", "odds_away_prob", "odds_overround", "odds_available"]
 
     categorical_columns = ["tournament_group"]
     if include_fifa:
